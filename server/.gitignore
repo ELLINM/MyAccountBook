@@ -1,0 +1,18 @@
+# Node modules
+node_modules/
+
+# Environment variables
+.env
+
+# VS Code specific files
+.vscode/
+
+# Logs
+*.log
+
+# Build artifacts for client (Vue.js)
+client/dist/
+
+# Node.js specific files for server
+server/node_modules/
+server/.env
