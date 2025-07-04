@@ -1,21 +1,41 @@
-// server/server.js
-const express = require("express"); // Import Express for building the server
-const connectDB = require("./config/db"); // Import the database connection function
-require("dotenv").config(); // Load environment variables
+// C:\Users\ellin\Desktop\Project\MyAccountBook\server\server.js
 
-const app = express(); // Initialize Express application
+require("dotenv").config();
 
-// Connect Database
+const express = require("express");
+const cors = require("cors");
+const connectDB = require("./config/db");
+const authRoutes = require("./routes/authRoutes"); // Import auth routes
+
+// Connect to database
 connectDB();
 
-// Middleware to parse JSON bodies
-app.use(express.json());
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Basic route for testing
+// Middleware setup
+app.use(cors());
+app.use(express.json()); // To parse JSON request bodies
+
+// Route setup
+app.use("/api/auth", authRoutes); // All requests to /api/auth will be handled by authRoutes
+
+// Basic route (for server status check)
 app.get("/", (req, res) => {
-  res.send("API is running..."); // Send a simple response for the root URL
+  res.send("AccountBook Backend API is running!");
 });
 
-const PORT = process.env.PORT || 5000; // Set the port from environment variables or default to 5000
+// API test route (keeping existing)
+app.get("/api/test", (req, res) => {
+  res.json({ message: "API test successful!", timestamp: new Date() });
+});
 
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`)); // Start the server
+// Start server
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Access backend at http://localhost:${PORT}`);
+  console.log(`Test API at http://localhost:${PORT}/api/test`);
+  console.log(
+    `Register user at POST http://localhost:${PORT}/api/auth/register`
+  );
+});
