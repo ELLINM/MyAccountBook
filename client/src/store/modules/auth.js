@@ -1,58 +1,61 @@
 // client/src/store/modules/auth.js
+
+import authService from "@/services/authService";
+
 const state = {
-  user: null, // Authenticated user data
-  token: localStorage.getItem("token") || null, // JWT token from localStorage
+  user: JSON.parse(localStorage.getItem("user")) || null,
+  token: localStorage.getItem("token") || null,
   authStatus: "", // 'loading', 'success', 'error'
 };
 
 const getters = {
   isAuthenticated: (state) => !!state.token, // True if token exists
-  authState: (state) => state.authStatus,
+  authStatus: (state) => state.authStatus,
   currentUser: (state) => state.user,
+  getToken: (state) => state.token,
 };
 
 const actions = {
-  // Action for user login
   async login({ commit }, userCredentials) {
-    commit("auth_request"); // Set auth status to loading
-    try {
-      // In a real app, you'd make an API call here
-      // const response = await axios.post('/api/auth/login', userCredentials);
-      // const token = response.data.token;
-      // const user = response.data.user;
-
-      // Mock data for now
-      const token = "mock-jwt-token-12345";
-      const user = { email: userCredentials.email, id: "mock-user-id" };
-
-      localStorage.setItem("token", token); // Store token in localStorage
-      commit("auth_success", { token, user }); // Commit success mutation
-    } catch (error) {
-      commit("auth_error"); // Commit error mutation
-      // You might want to dispatch a global error message action here
-    }
-  },
-  // Action for user registration
-  async register({ commit }, _userDetails) {
     commit("auth_request");
     try {
-      // In a real app, you'd make an API call here
-      // const response = await axios.post('/api/auth/register', _userDetails);
-      commit("register_success"); // Commit success mutation
+      const response = await authService.login(userCredentials);
+      const token = response.token;
+      const user = { _id: response._id, email: response.email };
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      commit("auth_success", { token, user });
+      return response;
     } catch (error) {
-      commit("auth_error"); // Commit error mutation
+      commit("auth_error");
+      throw error;
     }
   },
-  // Action for user logout
+
+  async register({ commit }, userDetails) {
+    commit("auth_request");
+    try {
+      const response = await authService.register(userDetails);
+      commit("register_success");
+      return response;
+    } catch (error) {
+      commit("auth_error");
+      throw error;
+    }
+  },
+
   async logout({ commit }) {
-    await localStorage.removeItem("token"); // Remove token from localStorage
-    commit("logout"); // Commit logout mutation
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    commit("logout");
   },
 };
 
 const mutations = {
   auth_request(state) {
-    state.authStatus = "loading"; // Set status to loading
+    state.authStatus = "loading";
   },
   auth_success(state, { token, user }) {
     state.authStatus = "success";
@@ -65,7 +68,7 @@ const mutations = {
     state.user = null;
   },
   register_success(state) {
-    state.authStatus = "success"; // Registration is just a success status
+    state.authStatus = "success";
   },
   logout(state) {
     state.authStatus = "";
@@ -75,7 +78,7 @@ const mutations = {
 };
 
 export default {
-  namespaced: true, // Namespacing helps prevent module naming collisions
+  namespaced: true,
   state,
   getters,
   actions,

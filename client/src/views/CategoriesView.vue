@@ -1,20 +1,28 @@
 <template>
-  <div class="categories-view">
-    <h1>Categories</h1>
-    <p>Organize your financial categories.</p>
+  <div class="page-container">
+    <h1>Category Management</h1>
+    <p>
+      Category list and add/edit/delete functionalities will be implemented
+      here.
+    </p>
+    <router-link to="/dashboard">Back to Dashboard</router-link>
   </div>
 </template>
 
 <script>
-export default {
-  name: "CategoriesView",
-  // You will add component logic here later
-};
+  export default {
+    name: "CategoriesView", // Ensure this matches the file name consistency
+  };
 </script>
 
 <style scoped>
-/* Scoped styles for CategoriesView */
-.categories-view {
-  padding: 20px;
-}
+  .page-container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    background-color: #fff;
+  }
 </style>

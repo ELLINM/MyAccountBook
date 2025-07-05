@@ -1,88 +1,101 @@
 // client/src/store/modules/transactions.js
+
+import axios from "axios";
+
+const API_URL = process.env.VUE_APP_API_URL;
+
 const state = {
-  transactions: [], // Array to store transaction objects
-  currentTransaction: null, // For viewing/editing a single transaction
+  transactions: [],
+  currentTransaction: null,
   status: "", // 'loading', 'success', 'error'
+  error: null,
 };
 
 const getters = {
   allTransactions: (state) => state.transactions,
   transactionStatus: (state) => state.status,
+  transactionError: (state) => state.error,
+  currentTransaction: (state) => state.currentTransaction,
 };
 
 const actions = {
-  // Action to fetch all transactions
-  async fetchTransactions({ commit }) {
+  async fetchTransactions({ commit, rootGetters }) {
     commit("transactions_request");
     try {
-      // API call to backend: GET /api/transactions
-      // const response = await axios.get('/api/transactions');
-      // commit('transactions_success', response.data);
+      const token = rootGetters["auth/getToken"];
+      const response = await axios.get(`${API_URL}/transactions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      commit("transactions_success", response.data);
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      commit("transactions_error", message);
+      throw message;
+    }
+  },
 
-      // Mock data for now
-      const mockTransactions = [
+  async addTransaction({ commit, rootGetters }, transactionData) {
+    commit("transactions_request");
+    try {
+      const token = rootGetters["auth/getToken"];
+      const response = await axios.post(
+        `${API_URL}/transactions`,
+        transactionData,
         {
-          _id: "t1",
-          date: new Date(),
-          amount: 15000,
-          type: "expense",
-          category: { id: "c1", name: "Food" },
-          description: "Lunch",
-        },
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      commit("add_transaction_success", response.data);
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      commit("transactions_error", message);
+      throw message;
+    }
+  },
+
+  async updateTransaction({ commit, rootGetters }, { id, transactionData }) {
+    commit("transactions_request");
+    try {
+      const token = rootGetters["auth/getToken"];
+      const response = await axios.put(
+        `${API_URL}/transactions/${id}`,
+        transactionData,
         {
-          _id: "t2",
-          date: new Date(),
-          amount: 50000,
-          type: "income",
-          category: { id: "c2", name: "Salary" },
-          description: "Monthly salary",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      commit("update_transaction_success", response.data);
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      commit("transactions_error", message);
+      throw message;
+    }
+  },
+
+  async deleteTransaction({ commit, rootGetters }, id) {
+    commit("transactions_request");
+    try {
+      const token = rootGetters["auth/getToken"];
+      await axios.delete(`${API_URL}/transactions/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      ];
-      commit("transactions_success", mockTransactions);
+      });
+      commit("delete_transaction_success", id);
+      return id;
     } catch (error) {
-      commit("transactions_error");
-    }
-  },
-  // Action to add a new transaction
-  async addTransaction({ commit }, _transactionData) {
-    commit("transactions_request");
-    try {
-      // API call to backend: POST /api/transactions
-      // const response = await axios.post('/api/transactions', _transactionData);
-      // commit('add_transaction_success', response.data);
-      // For mock: assume success
-      commit("transactions_success"); // Just set status to success for now
-    } catch (error) {
-      commit("transactions_error");
-    }
-  },
-  // Action to update a transaction
-  async updateTransaction(
-    { commit },
-    { id: _id, transactionData: _transactionData }
-  ) {
-    commit("transactions_request");
-    try {
-      // API call to backend: PUT /api/transactions/:id
-      // const response = await axios.put(`/api/transactions/${_id}`, _transactionData);
-      // commit('update_transaction_success', response.data);
-      // For mock: assume success
-      commit("transactions_success");
-    } catch (error) {
-      commit("transactions_error");
-    }
-  },
-  // Action to delete a transaction
-  async deleteTransaction({ commit }, _id) {
-    commit("transactions_request");
-    try {
-      // API call to backend: DELETE /api/transactions/:id
-      // await axios.delete(`/api/transactions/${_id}`);
-      // commit('delete_transaction_success', _id);
-      // For mock: assume success
-      commit("transactions_success");
-    } catch (error) {
-      commit("transactions_error");
+      const message = error.response?.data?.message || error.message;
+      commit("transactions_error", message);
+      throw message;
     }
   },
 };
@@ -90,30 +103,38 @@ const actions = {
 const mutations = {
   transactions_request(state) {
     state.status = "loading";
+    state.error = null;
   },
   transactions_success(state, transactions) {
     state.status = "success";
-    if (transactions) {
-      // Only update if data is provided (e.g., from fetch)
-      state.transactions = transactions;
-    }
+    state.transactions = transactions;
+    state.error = null;
   },
-  transactions_error(state) {
+  transactions_error(state, message) {
     state.status = "error";
+    state.transactions = [];
+    state.error = message;
   },
-  // Consider specific mutations for add, update, delete for better reactivity
-  // add_transaction_success(state, newTransaction) {
-  //   state.transactions.push(newTransaction);
-  // },
-  // update_transaction_success(state, updatedTransaction) {
-  //   const index = state.transactions.findIndex(t => t._id === updatedTransaction._id);
-  //   if (index !== -1) {
-  //     state.transactions.splice(index, 1, updatedTransaction);
-  //   }
-  // },
-  // delete_transaction_success(state, id) {
-  //   state.transactions = state.transactions.filter(t => t._id !== id);
-  // },
+  add_transaction_success(state, newTransaction) {
+    state.status = "success";
+    state.transactions.push(newTransaction);
+    state.error = null;
+  },
+  update_transaction_success(state, updatedTransaction) {
+    state.status = "success";
+    const index = state.transactions.findIndex(
+      (t) => t._id === updatedTransaction._id
+    );
+    if (index !== -1) {
+      state.transactions.splice(index, 1, updatedTransaction);
+    }
+    state.error = null;
+  },
+  delete_transaction_success(state, id) {
+    state.status = "success";
+    state.transactions = state.transactions.filter((t) => t._id !== id);
+    state.error = null;
+  },
 };
 
 export default {

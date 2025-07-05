@@ -1,71 +1,95 @@
 // client/src/store/modules/categories.js
+
+import axios from "axios";
+
+const API_URL = process.env.VUE_APP_API_URL;
+
 const state = {
-  categories: [], // Array to store category objects
+  categories: [],
   status: "", // 'loading', 'success', 'error'
+  error: null,
 };
 
 const getters = {
   allCategories: (state) => state.categories,
   categoryStatus: (state) => state.status,
+  categoryError: (state) => state.error,
 };
 
 const actions = {
-  // Action to fetch all categories
-  async fetchCategories({ commit }) {
+  async fetchCategories({ commit, rootGetters }) {
     commit("categories_request");
     try {
-      // API call to backend: GET /api/categories
-      // const response = await axios.get('/api/categories');
-      // commit('categories_success', response.data);
+      const token = rootGetters["auth/getToken"];
+      const response = await axios.get(`${API_URL}/categories`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      commit("categories_success", response.data);
+      return response.data;
+    } catch (error) {
+      const message = error.response?.data?.message || error.message;
+      commit("categories_error", message);
+      throw message;
+    }
+  },
 
-      // Mock data for now
-      const mockCategories = [
-        { _id: "c1", name: "Food", type: "expense", icon: "🍔" },
-        { _id: "c2", name: "Salary", type: "income", icon: "💰" },
-        { _id: "c3", name: "Transportation", type: "expense", icon: "🚌" },
-      ];
-      commit("categories_success", mockCategories);
-    } catch (error) {
-      commit("categories_error");
-    }
-  },
-  // Action to add a new category
-  async addCategory({ commit }, _categoryData) {
+  async addCategory({ commit, rootGetters }, categoryData) {
     commit("categories_request");
     try {
-      // API call to backend: POST /api/categories
-      // const response = await axios.post('/api/categories', _categoryData);
-      // commit('add_category_success', response.data);
-      // For mock: assume success
-      commit("categories_success");
+      const token = rootGetters["auth/getToken"];
+      const response = await axios.post(`${API_URL}/categories`, categoryData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      commit("add_category_success", response.data);
+      return response.data;
     } catch (error) {
-      commit("categories_error");
+      const message = error.response?.data?.message || error.message;
+      commit("categories_error", message);
+      throw message;
     }
   },
-  // Action to update a category
-  async updateCategory({ commit }, { id: _id, categoryData: _categoryData }) {
+
+  async updateCategory({ commit, rootGetters }, { id, categoryData }) {
     commit("categories_request");
     try {
-      // API call to backend: PUT /api/categories/:id
-      // const response = await axios.put(`/api/categories/${_id}`, _categoryData);
-      // commit('update_category_success', response.data);
-      // For mock: assume success
-      commit("categories_success");
+      const token = rootGetters["auth/getToken"];
+      const response = await axios.put(
+        `${API_URL}/categories/${id}`,
+        categoryData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      commit("update_category_success", response.data);
+      return response.data;
     } catch (error) {
-      commit("categories_error");
+      const message = error.response?.data?.message || error.message;
+      commit("categories_error", message);
+      throw message;
     }
   },
-  // Action to delete a category
-  async deleteCategory({ commit }, _id) {
+
+  async deleteCategory({ commit, rootGetters }, id) {
     commit("categories_request");
     try {
-      // API call to backend: DELETE /api/categories/:id
-      // await axios.delete(`/api/categories/${_id}`);
-      // commit('delete_category_success', _id);
-      // For mock: assume success
-      commit("categories_success");
+      const token = rootGetters["auth/getToken"];
+      await axios.delete(`${API_URL}/categories/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      commit("delete_category_success", id);
+      return id;
     } catch (error) {
-      commit("categories_error");
+      const message = error.response?.data?.message || error.message;
+      commit("categories_error", message);
+      throw message;
     }
   },
 };
@@ -73,30 +97,38 @@ const actions = {
 const mutations = {
   categories_request(state) {
     state.status = "loading";
+    state.error = null;
   },
   categories_success(state, categories) {
     state.status = "success";
-    if (categories) {
-      // Only update if data is provided
-      state.categories = categories;
-    }
+    state.categories = categories;
+    state.error = null;
   },
-  categories_error(state) {
+  categories_error(state, message) {
     state.status = "error";
+    state.categories = [];
+    state.error = message;
   },
-  // Consider specific mutations for add, update, delete for better reactivity
-  // add_category_success(state, newCategory) {
-  //   state.categories.push(newCategory);
-  // },
-  // update_category_success(state, updatedCategory) {
-  //   const index = state.categories.findIndex(c => c._id === updatedCategory._id);
-  //   if (index !== -1) {
-  //     state.categories.splice(index, 1, updatedCategory);
-  //   }
-  // },
-  // delete_category_success(state, id) {
-  //   state.categories = state.categories.filter(c => c._id !== id);
-  // },
+  add_category_success(state, newCategory) {
+    state.status = "success";
+    state.categories.push(newCategory);
+    state.error = null;
+  },
+  update_category_success(state, updatedCategory) {
+    state.status = "success";
+    const index = state.categories.findIndex(
+      (c) => c._id === updatedCategory._id
+    );
+    if (index !== -1) {
+      state.categories.splice(index, 1, updatedCategory);
+    }
+    state.error = null;
+  },
+  delete_category_success(state, id) {
+    state.status = "success";
+    state.categories = state.categories.filter((c) => c._id !== id);
+    state.error = null;
+  },
 };
 
 export default {
