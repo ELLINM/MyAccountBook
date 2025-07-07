@@ -1,6 +1,8 @@
 // C:\Users\ellin\Desktop\Project\MyAccountBook\server\server.js
 
 require("dotenv").config();
+console.log("Server.js file is being executed.");
+console.log("Current working directory:", process.cwd());
 
 const express = require("express");
 const cors = require("cors");
@@ -18,6 +20,9 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware setup
 app.use(cors());
+
+// IMPORTANT: Add express.json() right before your routes that need it
+// This ensures that the body parsing happens just before your routes are processed.
 app.use(express.json());
 
 // Route setup

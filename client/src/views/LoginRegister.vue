@@ -1,16 +1,32 @@
 <template>
   <div class="auth-container">
-    <h2>{{ isLogin ? "Login" : "Register" }}</h2>
+    <h2>{{ activeTab === "login" ? "Login" : "Register" }}</h2>
+    <div class="tabs">
+      <button
+        @click="activeTab = 'login'"
+        :class="{ active: activeTab === 'login' }"
+      >
+        Login
+      </button>
+      <button
+        @click="activeTab = 'register'"
+        :class="{ active: activeTab === 'register' }"
+      >
+        Register
+      </button>
+    </div>
+
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="email">Email:</label>
-        <input id="email" v-model="email" type="email" required />
+        <input type="email" id="email" v-model="email" required />
       </div>
       <div class="form-group">
         <label for="password">Password:</label>
-        <input id="password" v-model="password" type="password" required />
+        <input type="password" id="password" v-model="password" required />
       </div>
-      <div v-if="!isLogin" class="form-group">
+
+      <div v-if="activeTab === 'register'" class="form-group">
         <label for="passwordConfirm">Confirm Password:</label>
         <input
           id="passwordConfirm"
@@ -20,18 +36,15 @@
         />
       </div>
 
-      <p v-if="authStatus === 'loading'">Processing request...</p>
-      <p v-if="authError" class="error-message">{{ authError }}</p>
+      <p v-if="authStatus === 'loading'" class="loading-message">
+        Processing request...
+      </p>
+      <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
 
       <button type="submit" :disabled="authStatus === 'loading'">
-        {{ isLogin ? "Login" : "Register" }}
+        {{ activeTab === "login" ? "Login" : "Register" }}
       </button>
     </form>
-
-    <p class="toggle-mode">
-      {{ isLogin ? "Don't have an account?" : "Already have an account?" }}
-      <span @click="toggleMode">{{ isLogin ? "Register" : "Login" }}</span>
-    </p>
   </div>
 </template>
 
@@ -42,68 +55,88 @@
     name: "LoginRegister",
     data() {
       return {
-        isLogin: true, // true for login form, false for registration form
+        activeTab: "login",
         email: "",
         password: "",
         passwordConfirm: "",
-        authError: null, // To display API error messages
+        errorMessage: "",
       };
     },
     computed: {
       ...mapGetters("auth", ["authStatus", "isAuthenticated"]),
     },
     watch: {
-      // Redirect to dashboard if authenticated
-      isAuthenticated(newVal) {
-        if (newVal) {
+      authStatus(newStatus) {
+        console.log("Watcher: authStatus changed to:", newStatus); // Debug log
+        if (newStatus === "success" && this.isAuthenticated) {
+          this.errorMessage = "";
+          console.log(
+            "Watcher: Authentication successful, redirecting to /dashboard"
+          ); // Debug log
+          this.$router.push("/dashboard");
+        } else if (newStatus === "register_success") {
+          this.errorMessage = "Registration successful! Please log in.";
+          this.activeTab = "login";
+          console.log(
+            "Watcher: Registration successful, switched to login tab."
+          ); // Debug log
+        }
+      },
+      isAuthenticated(newValue) {
+        console.log("Watcher: isAuthenticated changed to:", newValue); // Debug log
+        if (newValue && this.$route.path === "/auth") {
+          console.log(
+            "Watcher: User is authenticated, redirecting from /auth to /dashboard"
+          ); // Debug log
           this.$router.push("/dashboard");
         }
       },
-      // Clear or set error message based on authStatus
-      authStatus(newVal) {
-        if (newVal === "error") {
-          this.authError =
-            "Login/Registration failed: Please check your email and password.";
-        } else {
-          this.authError = null;
-        }
+      activeTab(newTab) {
+        console.log("Watcher: activeTab changed to:", newTab); // Debug log
+        this.errorMessage = "";
+        this.password = "";
+        this.passwordConfirm = "";
       },
+    },
+    created() {
+      console.log("Component created. isAuthenticated:", this.isAuthenticated); // Debug log
+      if (this.isAuthenticated) {
+        this.$router.push("/dashboard");
+      }
     },
     methods: {
       ...mapActions("auth", ["login", "register"]),
 
-      toggleMode() {
-        this.isLogin = !this.isLogin;
-        this.authError = null; // Clear error message on mode switch
-      },
-
       async handleSubmit() {
-        this.authError = null; // Clear error before submission
+        console.log("handleSubmit called."); // Debug log
+        this.errorMessage = "";
 
-        if (this.isLogin) {
-          // Handle login
-          try {
-            await this.login({ email: this.email, password: this.password });
-            // Redirection handled by isAuthenticated watcher on success
-          } catch (error) {
-            this.authError = error || "An unknown error occurred during login.";
-            console.error("Login failed:", error);
+        try {
+          const credentials = { email: this.email, password: this.password };
+          console.log("Attempting to submit with:", credentials); // Debug log
+
+          if (this.activeTab === "login") {
+            console.log("Calling login action..."); // Debug log
+            await this.login(credentials);
+            console.log("Login action completed."); // Debug log
+          } else {
+            // activeTab === 'register'
+            if (this.password !== this.passwordConfirm) {
+              this.errorMessage = "Password and confirm password do not match.";
+              console.log("Password mismatch error:", this.errorMessage); // Debug log
+              return;
+            }
+            console.log("Calling register action..."); // Debug log
+            await this.register(credentials);
+            console.log("Register action completed."); // Debug log
           }
-        } else {
-          // Handle registration
-          if (this.password !== this.passwordConfirm) {
-            this.authError = "Password and confirm password do not match.";
-            return;
-          }
-          try {
-            await this.register({ email: this.email, password: this.password });
-            alert("Registration successful! Please log in.");
-            this.toggleMode(); // Switch to login mode after successful registration
-          } catch (error) {
-            this.authError =
-              error || "An unknown error occurred during registration.";
-            console.error("Registration failed:", error);
-          }
+        } catch (error) {
+          this.errorMessage =
+            error.message || "An unexpected error occurred. Please try again.";
+          console.error(
+            "Authentication failed in handleSubmit catch block:",
+            error
+          ); // Debug log
         }
       },
     },
@@ -114,79 +147,104 @@
   .auth-container {
     max-width: 400px;
     margin: 50px auto;
-    padding: 20px;
-    border: 1px solid #ccc;
+    padding: 30px;
+    border: 1px solid #ddd;
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     background-color: #fff;
+    text-align: center;
   }
 
   h2 {
-    text-align: center;
-    margin-bottom: 20px;
     color: #333;
+    margin-bottom: 25px;
+  }
+
+  .tabs {
+    margin-bottom: 25px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .tabs button {
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    padding: 10px 20px;
+    margin: 0;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      border-color 0.3s ease;
+    flex-grow: 1;
+    max-width: 150px;
+  }
+
+  .tabs button.active {
+    background-color: #42b983;
+    color: white;
+    border-color: #42b983;
+  }
+
+  .tabs button:hover:not(.active) {
+    background-color: #e0e0e0;
   }
 
   .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 18px;
+    text-align: left;
   }
 
-  label {
+  .form-group label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     font-weight: bold;
     color: #555;
   }
 
-  input[type="email"],
-  input[type="password"] {
-    width: calc(100% - 20px); /* Account for padding */
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
+  .form-group input {
+    width: calc(100% - 20px);
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    box-sizing: border-box;
   }
 
-  button {
+  button[type="submit"] {
     width: 100%;
-    padding: 10px;
+    padding: 12px;
     background-color: #007bff;
     color: white;
     border: none;
-    border-radius: 4px;
-    font-size: 1.1rem;
+    border-radius: 5px;
+    font-size: 18px;
     cursor: pointer;
     transition: background-color 0.3s ease;
+    margin-top: 20px;
   }
 
-  button:hover:not(:disabled) {
+  button[type="submit"]:hover:not(:disabled) {
     background-color: #0056b3;
   }
 
-  button:disabled {
-    background-color: #cccccc;
+  button[type="submit"]:disabled {
+    background-color: #a0d4b8;
     cursor: not-allowed;
   }
 
-  .toggle-mode {
-    text-align: center;
-    margin-top: 20px;
-    color: #777;
-  }
-
-  .toggle-mode span {
-    color: #007bff;
-    cursor: pointer;
-    font-weight: bold;
-  }
-
-  .toggle-mode span:hover {
-    text-decoration: underline;
-  }
-
   .error-message {
-    color: red;
-    text-align: center;
-    margin-bottom: 10px;
+    color: #dc3545;
+    margin-top: 15px;
+    font-size: 14px;
+  }
+
+  .loading-message {
+    color: #007bff;
+    margin-top: 15px;
+    font-size: 14px;
   }
 </style>

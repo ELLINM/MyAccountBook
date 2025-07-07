@@ -8,10 +8,17 @@ const jwt = require("jsonwebtoken"); // For JSON Web Token generation
 // @route   POST /api/auth/register
 // @access  Public
 const registerUser = async (req, res) => {
+  console.log("--- Inside registerUser function ---");
+  console.log("Register request received. req.body:", req.body);
+  console.log("--- Full req object ---");
+  console.log(req);
+  console.log("--- End of Full req object ---");
+
   const { email, password } = req.body; // Extract email and password from request body
 
   // 1. Check if all fields are entered
   if (!email || !password) {
+    console.log("Missing fields:", { email, password });
     return res.status(400).json({ message: "Please enter all fields" });
   }
 

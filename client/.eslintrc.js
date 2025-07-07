@@ -6,12 +6,13 @@ module.exports = {
   },
   extends: [
     "eslint:recommended",
-    "plugin:vue/recommended",
+    "plugin:vue/recommended", // Replaced vue3-essential with vue/recommended for more comprehensive rules.
     "@vue/prettier",
     "plugin:prettier/recommended",
   ],
   parserOptions: {
     parser: "@babel/eslint-parser",
+    requireConfigFile: false, // This is the new line to fix the error.
     ecmaVersion: 2020,
     sourceType: "module",
   },
@@ -20,7 +21,7 @@ module.exports = {
     "no-debugger": process.env.NODE_ENV === "production" ? "warn" : "off",
     "prettier/prettier": ["error", {}, { usePrettierrc: true }],
     "vue/multi-word-component-names": "off",
-    "vue/html-indent": "off", // off 유지
-    "vue/script-indent": "off", // off 유지
+    "vue/html-indent": "off", // Keep off
+    "vue/script-indent": "off", // Keep off
   },
 };
