@@ -171,8 +171,7 @@
   import { mapGetters, mapActions } from "vuex";
 
   export default {
-    // 여기서 컴포넌트 이름을 "TransactionsView"로 변경합니다.
-    name: "TransactionsView",
+    name: "TransactionList",
     data() {
       return {
         newTransaction: {

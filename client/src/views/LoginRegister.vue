@@ -3,14 +3,14 @@
     <h2>{{ activeTab === "login" ? "Login" : "Register" }}</h2>
     <div class="tabs">
       <button
-        @click="activeTab = 'login'"
         :class="{ active: activeTab === 'login' }"
+        @click="activeTab = 'login'"
       >
         Login
       </button>
       <button
-        @click="activeTab = 'register'"
         :class="{ active: activeTab === 'register' }"
+        @click="activeTab = 'register'"
       >
         Register
       </button>
@@ -19,11 +19,11 @@
     <form @submit.prevent="handleSubmit">
       <div class="form-group">
         <label for="email">Email:</label>
-        <input type="email" id="email" v-model="email" required />
+        <input id="email" v-model="email" type="email" required />
       </div>
       <div class="form-group">
         <label for="password">Password:</label>
-        <input type="password" id="password" v-model="password" required />
+        <input id="password" v-model="password" type="password" required />
       </div>
 
       <div v-if="activeTab === 'register'" class="form-group">

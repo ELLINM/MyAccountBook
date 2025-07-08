@@ -1,64 +1,63 @@
 // client/src/services/authService.js
-
 import axios from "axios";
 
-// Base URL for the backend API, typically from environment variables.
-const API_URL = process.env.VUE_APP_API_URL; // This is now http://localhost:5000
+// Create an Axios instance with a base URL for the authentication API.
+// This instance will specifically handle authentication-related requests.
+const api = axios.create({
+  baseURL: "/api/auth", // Base path for the backend authentication API, relative to the proxy
+});
 
-/**
- * Registers a new user by sending data to the backend.
- * @param {object} userData - Object containing user's registration data (e.g., { email, password }).
- * @returns {Promise<object>} - A promise that resolves with the response data on success.
- * @throws {string} - Throws an error message on failure.
- */
-const register = async (userData) => {
-  try {
-    // Corrected URL: Add '/api' back here
-    const response = await axios.post(
-      `${API_URL}/api/auth/register`,
-      userData,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
+const AuthService = {
+  /**
+   * Handles user login by sending credentials to the backend.
+   * On successful login, it calls setAuthToken to configure Axios for subsequent requests.
+   * @param {object} credentials - User login credentials (e.g., { email, password }).
+   * @returns {Promise<object>} A promise that resolves with token and user data.
+   */
+  async login(credentials) {
+    const response = await api.post("/login", credentials);
+    const { token, user } = response.data;
+    // Set the token using the setAuthToken method, which now applies globally to axios.defaults
+    AuthService.setAuthToken(token);
+    return { token, user };
+  },
+
+  /**
+   * Handles user registration.
+   * @param {object} credentials - User registration details (e.g., { email, password, name }).
+   * @returns {Promise<object>} A promise that resolves with registration confirmation.
+   */
+  async register(credentials) {
+    const response = await api.post("/register", credentials);
     return response.data;
-  } catch (error) {
-    throw error.response.data.message || error.message;
-  }
+  },
+
+  /**
+   * Handles user logout.
+   * Clears the authentication token from Axios global defaults.
+   * @returns {Promise<object>} A promise that resolves with a logout message.
+   */
+  async logout() {
+    // Optional: If your backend has a /logout endpoint to invalidate sessions/tokens
+    // await api.post('/logout');
+    // Clear the authentication token from Axios global defaults
+    AuthService.setAuthToken(null);
+    return { message: "Logged out successfully" };
+  },
+
+  /**
+   * Sets or clears the authentication token in Axios's global default headers.
+   * This ensures all subsequently created or used Axios instances (unless explicitly overridden)
+   * will include or exclude this token.
+   * @param {string | null} token - The JWT token to set, or null to clear.
+   */
+  setAuthToken(token) {
+    if (token) {
+      axios.defaults.headers.common["x-auth-token"] = token;
+    } else {
+      delete axios.defaults.headers.common["x-auth-token"];
+    }
+  },
 };
 
-/**
- * Logs in a user by sending credentials to the backend.
- * @param {object} userData - Object containing user's login credentials (e.g., { email, password }).
- * @returns {Promise<object>} - A promise that resolves with user data and token on success.
- * @throws {string} - Throws an error message on failure.
- */
-const login = async (userData) => {
-  try {
-    // Corrected URL: Add '/api' back here
-    const response = await axios.post(`${API_URL}/api/auth/login`, userData, {
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
-    return response.data;
-  } catch (error) {
-    throw error.response.data.message || error.message;
-  }
-};
-
-/**
- * Handles user logout. In this current backend setup, no API call is needed for logout.
- * This function can be extended if the backend requires a logout endpoint call (e.g., for session invalidation).
- */
-const logout = () => {
-  // No API call needed for logout in our current backend setup
-};
-
-export default {
-  register,
-  login,
-  logout,
-};
+export default AuthService;

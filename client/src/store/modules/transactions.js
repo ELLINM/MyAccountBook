@@ -1,8 +1,6 @@
 // client/src/store/modules/transactions.js
 
-import axios from "axios";
-
-const API_URL = process.env.VUE_APP_API_URL;
+import transactionsService from "../../services/transactionsService.js";
 
 const state = {
   transactions: [],
@@ -23,13 +21,15 @@ const actions = {
     commit("transactions_request");
     try {
       const token = rootGetters["auth/getToken"];
-      const response = await axios.get(`${API_URL}/transactions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      commit("transactions_success", response.data);
-      return response.data;
+      console.log(
+        "Vuex (transactions module): Token fetched from auth module:",
+        token
+      );
+      transactionsService.setAuthToken(token);
+      // Calls the getTransactions method from the service, which handles Axios configuration and token.
+      const responseData = await transactionsService.getTransactions();
+      commit("transactions_success", responseData);
+      return responseData;
     } catch (error) {
       const message = error.response?.data?.message || error.message;
       commit("transactions_error", message);
@@ -41,17 +41,11 @@ const actions = {
     commit("transactions_request");
     try {
       const token = rootGetters["auth/getToken"];
-      const response = await axios.post(
-        `${API_URL}/transactions`,
-        transactionData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-      commit("add_transaction_success", response.data);
-      return response.data;
+      transactionsService.setAuthToken(token);
+      const responseData =
+        await transactionsService.addTransaction(transactionData);
+      commit("add_transaction_success", responseData);
+      return responseData;
     } catch (error) {
       const message = error.response?.data?.message || error.message;
       commit("transactions_error", message);
@@ -63,17 +57,13 @@ const actions = {
     commit("transactions_request");
     try {
       const token = rootGetters["auth/getToken"];
-      const response = await axios.put(
-        `${API_URL}/transactions/${id}`,
-        transactionData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      transactionsService.setAuthToken(token);
+      const responseData = await transactionsService.updateTransaction(
+        id,
+        transactionData
       );
-      commit("update_transaction_success", response.data);
-      return response.data;
+      commit("update_transaction_success", responseData);
+      return responseData;
     } catch (error) {
       const message = error.response?.data?.message || error.message;
       commit("transactions_error", message);
@@ -85,11 +75,8 @@ const actions = {
     commit("transactions_request");
     try {
       const token = rootGetters["auth/getToken"];
-      await axios.delete(`${API_URL}/transactions/${id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      transactionsService.setAuthToken(token);
+      await transactionsService.deleteTransaction(id);
       commit("delete_transaction_success", id);
       return id;
     } catch (error) {
