@@ -45,6 +45,7 @@ const actions = {
     commit("auth_request");
     try {
       const resp = await AuthService.login(credentials);
+      AuthService.setAuthToken(resp.token);
       localStorage.setItem("token", resp.token);
       localStorage.setItem("user", JSON.stringify(resp.user));
       commit("auth_success", { token: resp.token, user: resp.user });
