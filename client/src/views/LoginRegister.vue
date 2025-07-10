@@ -5,25 +5,39 @@
       <button
         :class="{ active: activeTab === 'login' }"
         @click="activeTab = 'login'"
+        class="login-tab-button"
       >
         Login
       </button>
       <button
         :class="{ active: activeTab === 'register' }"
         @click="activeTab = 'register'"
+        class="register-tab-button"
       >
         Register
       </button>
     </div>
 
-    <form @submit.prevent="handleSubmit">
+    <form
+      @submit.prevent="handleSubmit"
+      :class="{
+        'login-form': activeTab === 'login',
+        'register-form': activeTab === 'register',
+      }"
+    >
       <div class="form-group">
         <label for="email">Email:</label>
         <input id="email" v-model="email" type="email" required />
       </div>
       <div class="form-group">
         <label for="password">Password:</label>
-        <input id="password" v-model="password" type="password" required />
+        <input
+          id="password"
+          v-model="password"
+          type="password"
+          required
+          name="password"
+        />
       </div>
 
       <div v-if="activeTab === 'register'" class="form-group">
@@ -33,6 +47,7 @@
           v-model="passwordConfirm"
           type="password"
           required
+          name="passwordConfirm"
         />
       </div>
 
@@ -40,6 +55,7 @@
         Processing request...
       </p>
       <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+      <p v-if="successMessage" class="success-message">{{ successMessage }}</p>
 
       <button type="submit" :disabled="authStatus === 'loading'">
         {{ activeTab === "login" ? "Login" : "Register" }}
@@ -60,83 +76,108 @@
         password: "",
         passwordConfirm: "",
         errorMessage: "",
+        successMessage: "",
       };
     },
     computed: {
       ...mapGetters("auth", ["authStatus", "isAuthenticated"]),
     },
     watch: {
-      authStatus(newStatus) {
-        console.log("Watcher: authStatus changed to:", newStatus); // Debug log
-        if (newStatus === "success" && this.isAuthenticated) {
-          this.errorMessage = "";
-          console.log(
-            "Watcher: Authentication successful, redirecting to /dashboard"
-          ); // Debug log
-          this.$router.push("/dashboard");
-        } else if (newStatus === "register_success") {
-          this.errorMessage = "Registration successful! Please log in.";
-          this.activeTab = "login";
-          console.log(
-            "Watcher: Registration successful, switched to login tab."
-          ); // Debug log
-        }
+      // Combine relevant watchers for better control and sequence
+      authStatus: {
+        immediate: true, // Run immediately on component creation
+        async handler(newStatus, oldStatus) {
+          // Clear messages when status changes, especially to loading
+          if (newStatus === "loading") {
+            this.errorMessage = "";
+            this.successMessage = "";
+            return; // Exit early if loading, wait for next status
+          }
+
+          // Handle success after login
+          if (newStatus === "success" && this.isAuthenticated) {
+            this.errorMessage = "";
+            this.successMessage = "";
+            // Ensure router push happens after all state updates
+            if (this.$route.path === "/auth") {
+              // Only redirect from /auth
+              this.$router.push("/dashboard");
+            }
+            return;
+          }
+
+          // Handle successful registration
+          if (newStatus === "register_success") {
+            this.errorMessage = "";
+            this.successMessage = "Registration successful! Please log in.";
+            this.activeTab = "login";
+            return;
+          }
+
+          // Handle error status (assuming authStatus can become 'error')
+          // You might want to set errorMessage here based on a Vuex error state
+          // if (newStatus === "error" && this.$store.getters['auth/authError']) {
+          //   this.errorMessage = this.$store.getters['auth/authError'];
+          // }
+        },
       },
-      isAuthenticated(newValue) {
-        console.log("Watcher: isAuthenticated changed to:", newValue); // Debug log
-        if (newValue && this.$route.path === "/auth") {
-          console.log(
-            "Watcher: User is authenticated, redirecting from /auth to /dashboard"
-          ); // Debug log
-          this.$router.push("/dashboard");
-        }
+      // Keep isAuthenticated separate if it can change independently of authStatus
+      // However, if isAuthenticated is directly tied to authStatus, consider merging.
+      // Given the current setup, it seems fine to keep it separate.
+      isAuthenticated: {
+        immediate: true, // Important for initial check
+        handler(newValue, oldValue) {
+          if (newValue && this.$route.path === "/auth") {
+            this.$router.push("/dashboard");
+          }
+        },
       },
-      activeTab(newTab) {
-        console.log("Watcher: activeTab changed to:", newTab); // Debug log
+      activeTab() {
+        // Always clear fields and messages when tabs switch
         this.errorMessage = "";
+        this.successMessage = "";
+        this.email = "";
         this.password = "";
         this.passwordConfirm = "";
       },
     },
     created() {
-      console.log("Component created. isAuthenticated:", this.isAuthenticated); // Debug log
-      if (this.isAuthenticated) {
-        this.$router.push("/dashboard");
-      }
+      // The immediate: true on isAuthenticated watcher handles this now
+      // No explicit router push needed here if watcher is immediate
+      // if (this.isAuthenticated) {
+      //   this.$router.push("/dashboard");
+      // }
     },
     methods: {
       ...mapActions("auth", ["login", "register"]),
-
       async handleSubmit() {
-        console.log("handleSubmit called."); // Debug log
+        // Messages are cleared by watcher on 'loading' status, but also here for immediate feedback
         this.errorMessage = "";
-
+        this.successMessage = "";
         try {
-          const credentials = { email: this.email, password: this.password };
-          console.log("Attempting to submit with:", credentials); // Debug log
-
           if (this.activeTab === "login") {
-            console.log("Calling login action..."); // Debug log
-            await this.login(credentials);
-            console.log("Login action completed."); // Debug log
+            await this.login({
+              email: this.email,
+              password: this.password,
+            });
           } else {
-            // activeTab === 'register'
+            // Register tab
             if (this.password !== this.passwordConfirm) {
-              this.errorMessage = "Password and confirm password do not match.";
-              console.log("Password mismatch error:", this.errorMessage); // Debug log
+              this.errorMessage = "Passwords do not match.";
               return;
             }
-            console.log("Calling register action..."); // Debug log
-            await this.register(credentials);
-            console.log("Register action completed."); // Debug log
+            await this.register({
+              email: this.email,
+              password: this.password,
+            });
           }
         } catch (error) {
+          // Make sure authStatus is set to 'error' or 'idle' in your Vuex action on error
           this.errorMessage =
-            error.message || "An unexpected error occurred. Please try again.";
-          console.error(
-            "Authentication failed in handleSubmit catch block:",
-            error
-          ); // Debug log
+            error.response && error.response.data && error.response.data.message
+              ? error.response.data.message
+              : "An unexpected error occurred.";
+          this.successMessage = ""; // Clear success message on error
         }
       },
     },
